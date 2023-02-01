@@ -118,8 +118,15 @@ end
 -- Called to define all the script properties
 function script_properties()
 	local properties = obs.obs_properties_create(); -- Create the obs properties
+	local file_types = "*.*"
 
-	obs.obs_properties_add_editable_list(properties, "applications", "Applications to launch at OBS startup", obs.OBS_EDITABLE_LIST_TYPE_FILES, "*.exe", nil); -- Declare the applications list to launch at obs startup
+	if USER_OS_NAME == "Windows" then
+		file_types = "*.exe"
+	elseif USER_OS_NAME == "Mac" then
+		file_types = "*.app"
+	end
+
+	obs.obs_properties_add_editable_list(properties, "applications", "Applications to launch at OBS startup", obs.OBS_EDITABLE_LIST_TYPE_FILES, file_types, nil); -- Declare the applications list to launch at obs startup
 	obs.obs_properties_add_button(properties, "startButton", "Start the applications", SmartStart_START); -- Declare a button to launch the script manually
 	obs.obs_properties_add_button(properties, "stopButton", "Stop all the applications currently running", SmartStart_STOP); -- Declare a button to launch the script manually
 	obs.obs_properties_add_bool(properties, "stopOnExit", "Stop all applications on exit ?"); -- Declare the auto exit of applications on obs exit
