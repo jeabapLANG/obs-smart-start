@@ -139,7 +139,11 @@ end
 -- Get the application from the applications list at the given index
 function SmartStart_Get_Application(applications, index)
 	local data = obs.obs_data_array_item(applications, index); -- Get the item from the array
-	local application = obs.obs_data_get_string(data, "value"):gsub("/", "\\"); -- Get the application path
+	local application = obs.obs_data_get_string(data, "value"); -- Get the application path
+
+	if USER_OS_NAME == "Windows" then
+		application:gsub("/", "\\") -- Fix file separators on Windows
+	end
 	
 	return application; -- Return the application path
 end
