@@ -150,7 +150,15 @@ end
 
 -- Get the application infos (name and directory) from its path
 function SmartStart_Get_Application_Infos(applicationPath)
-	local index = applicationPath:match("^.*()\\"); -- Removing application name from path
+	-- Remove application name from path
+	local index = applicationPath:match("^.*()");
+
+	if USER_OS_NAME == "Windows" then
+		index = applicationPath:match("^.*()\\");
+	else
+		index = applicationPath:match("^.*()/");
+	end
+
 	local applicationDirectory = applicationPath:sub(1, index); -- Getting application directory from path
 	local applicationName = applicationPath:sub(index + 1, #applicationPath); -- Get the application name from the path	
 
@@ -167,10 +175,15 @@ function SmartStart_START()
 			for index = 0, length - 1 do -- For each application listed
 				local applicationPath = SmartStart_Get_Application(applications, index); -- Get the obs application from the list
 				local applicationName, applicationDirectory = SmartStart_Get_Application_Infos(applicationPath); -- Get the application infos (name and directory)
+				local command = ""; -- Command placeholder
 
-				local command = 'start "" /d ' .. applicationDirectory .. ' ' .. '"' .. applicationName .. '" ' .. '/b /min'; -- Create the start command for the application
+				if USER_OS_NAME == "Windows" then
+					command = 'start "" /d ' .. applicationDirectory .. ' ' .. '"' .. applicationName .. '" ' .. '/b /min'; -- Create the start command for the application
+				elseif USER_OS_NAME == "Mac" then
+					command = 'open \"' .. applicationPath .. '\"';
+				end
 
-				os.execute(command); --Execute the application
+				os.execute(command); -- Execute the application
 			end
 		end
 		obs_start_pressed = true; -- Set the obs start button has already pressed
