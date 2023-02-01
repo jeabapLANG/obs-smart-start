@@ -199,8 +199,13 @@ function SmartStart_STOP()
 		for index = 0, length - 1 do -- For each application listed
 			local applicationPath = SmartStart_Get_Application(applications, index); -- Get the obs application from the list
 			local applicationName, applicationDirectory = SmartStart_Get_Application_Infos(applicationPath); -- Get the application infos (name and directory)
+			local command = ""; -- Command placeholder
 
-			local command = 'taskkill /IM "' .. applicationName .. '"'; -- Create the kill command for the application
+			if USER_OS_NAME == "Windows" then
+				command = 'taskkill /IM "' .. applicationName .. '"';
+			elseif USER_OS_NAME == "Mac" then
+				command = "osascript -e 'tell application \"" .. applicationName .. "\" to quit'"
+			end
 
 			os.execute(command); --Execute the application
 		end
