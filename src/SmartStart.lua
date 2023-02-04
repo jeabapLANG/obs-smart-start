@@ -33,6 +33,38 @@ ScriptDescription = [[
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------
 
+-- Check the user's OS.  Outputs OS and architecture as an array.
+function check_os()
+	local raw_os_name = jit.os
+
+    raw_os_name = (raw_os_name):lower()
+
+    local os_patterns = {
+        ['windows'] = "Windows",
+        ['linkux'] = "Linux",
+        ['mac'] = "Mac",
+        ['darwin'] = "Mac",
+		['osx'] = "Mac",
+        ['^mingw'] = 'Windows',
+        ['^cygwin'] = 'Windows',
+        ['bsd$'] = 'BSD',
+        ['sunos'] = 'Solaris',
+    }
+
+	local os_name = 'unknown'
+
+    for pattern, name in pairs(os_patterns) do
+        if raw_os_name:match(pattern) then
+            os_name = name
+            break
+        end
+    end
+
+	return os_name
+end
+
+USER_OS_NAME = check_os()
+
 -- A function named script_defaults will be called to set the default settings
 function script_defaults(settings)
 	obs.obs_data_set_bool(settings, "stopOnExit", true); -- Set the stopOnExit button to enabled by default
@@ -46,8 +78,15 @@ end
 -- Called to define all the script properties
 function script_properties()
 	local properties = obs.obs_properties_create(); -- Create the obs properties
+	local file_types = "*.*"
 
-	obs.obs_properties_add_editable_list(properties, "applications", "Applications to launch at OBS startup", obs.OBS_EDITABLE_LIST_TYPE_FILES, "*.exe", nil); -- Declare the applications list to launch at obs startup
+	if USER_OS_NAME == "Windows" then
+		file_types = "*.exe"
+	elseif USER_OS_NAME == "Mac" then
+		file_types = "*.app"
+	end
+
+	obs.obs_properties_add_editable_list(properties, "applications", "Applications to launch at OBS startup", obs.OBS_EDITABLE_LIST_TYPE_FILES, file_types, nil); -- Declare the applications list to launch at obs startup
 	obs.obs_properties_add_button(properties, "startButton", "Start the applications", SmartStart_START); -- Declare a button to launch the script manually
 	obs.obs_properties_add_button(properties, "stopButton", "Stop all the applications currently running", SmartStart_STOP); -- Declare a button to launch the script manually
 	obs.obs_properties_add_bool(properties, "stopOnExit", "Stop all applications on exit ?"); -- Declare the auto exit of applications on obs exit
@@ -60,14 +99,26 @@ end
 -- Get the application from the applications list at the given index
 function SmartStart_Get_Application(applications, index)
 	local data = obs.obs_data_array_item(applications, index); -- Get the item from the array
-	local application = obs.obs_data_get_string(data, "value"):gsub("/", "\\"); -- Get the application path
+	local application = obs.obs_data_get_string(data, "value"); -- Get the application path
+
+	if USER_OS_NAME == "Windows" then
+		application:gsub("/", "\\") -- Fix file separators on Windows
+	end
 	
 	return application; -- Return the application path
 end
 
 -- Get the application infos (name and directory) from its path
 function SmartStart_Get_Application_Infos(applicationPath)
-	local index = applicationPath:match("^.*()\\"); -- Removing application name from path
+	-- Remove application name from path
+	local index = applicationPath:match("^.*()");
+
+	if USER_OS_NAME == "Windows" then
+		index = applicationPath:match("^.*()\\");
+	else
+		index = applicationPath:match("^.*()/");
+	end
+
 	local applicationDirectory = applicationPath:sub(1, index); -- Getting application directory from path
 	local applicationName = applicationPath:sub(index + 1, #applicationPath); -- Get the application name from the path	
 
@@ -84,10 +135,15 @@ function SmartStart_START()
 			for index = 0, length - 1 do -- For each application listed
 				local applicationPath = SmartStart_Get_Application(applications, index); -- Get the obs application from the list
 				local applicationName, applicationDirectory = SmartStart_Get_Application_Infos(applicationPath); -- Get the application infos (name and directory)
+				local command = ""; -- Command placeholder
 
-				local command = 'start "" /d ' .. applicationDirectory .. ' ' .. '"' .. applicationName .. '" ' .. '/b /min'; -- Create the start command for the application
+				if USER_OS_NAME == "Windows" then
+					command = 'start "" /d ' .. applicationDirectory .. ' ' .. '"' .. applicationName .. '" ' .. '/b /min'; -- Create the start command for the application
+				elseif USER_OS_NAME == "Mac" then
+					command = 'open \"' .. applicationPath .. '\"';
+				end
 
-				os.execute(command); --Execute the application
+				os.execute(command); -- Execute the application
 			end
 		end
 		obs_start_pressed = true; -- Set the obs start button has already pressed
@@ -103,8 +159,13 @@ function SmartStart_STOP()
 		for index = 0, length - 1 do -- For each application listed
 			local applicationPath = SmartStart_Get_Application(applications, index); -- Get the obs application from the list
 			local applicationName, applicationDirectory = SmartStart_Get_Application_Infos(applicationPath); -- Get the application infos (name and directory)
+			local command = ""; -- Command placeholder
 
-			local command = 'taskkill /IM "' .. applicationName .. '"'; -- Create the kill command for the application
+			if USER_OS_NAME == "Windows" then
+				command = 'taskkill /IM "' .. applicationName .. '"';
+			elseif USER_OS_NAME == "Mac" then
+				command = "osascript -e 'tell application \"" .. applicationName .. "\" to quit'"
+			end
 
 			os.execute(command); --Execute the application
 		end
